@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+README.md
+PROJECT_PLAN.md
+*.md
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+inventory-service
+
+# Test files
+*_test.go
+
+# Misc
+.DS_Store
+tmp/
+temp/
+
+
