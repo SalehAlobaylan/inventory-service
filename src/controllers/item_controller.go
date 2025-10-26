@@ -9,15 +9,39 @@ import (
 	"inventory-service/src/utils"
 )
 
-// GetItems handles GET /inventory requests and returns all inventory items.
+// GetItems handles GET /inventory requests and returns all inventory items with pagination.
 func GetItems(c *gin.Context) {
-	var items []models.Item
 	db := utils.ConnectDatabase()
-	if err := db.Find(&items).Error; err != nil {
+
+	// Extract pagination parameters
+	paginationParams := utils.ExtractPaginationParams(c)
+
+	// Build query with filters and sorting using QueryBuilder
+	query := utils.NewQueryBuilder(db.Model(&models.Item{}), c).
+		ApplySorting(utils.SortConfig{
+			AllowedFields: map[string]bool{
+				"name":       true,
+				"stock":      true,
+				"price":      true,
+				"created_at": true,
+			},
+			DefaultField: "created_at",
+			DefaultOrder: "desc",
+		}).
+		ApplyFilters([]utils.FilterConfig{
+			{QueryParam: "name", DBColumn: "name", Operator: "ILIKE"},
+			{QueryParam: "min_stock", DBColumn: "stock", Operator: ">="},
+		}).
+		Build()
+
+	// Apply pagination
+	result, err := utils.PaginateWithQuery[models.Item](query, paginationParams)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, items)
+
+	c.JSON(http.StatusOK, result)
 }
 
 // GetItemByID handles GET /inventory/:id requests and returns the matching item.
