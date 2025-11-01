@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,11 +14,50 @@ import (
 // GetItems handles GET /inventory requests and returns all inventory items.
 func GetItems(c *gin.Context) {
 	var items []models.Item
+	
+
 	db := utils.ConnectDatabase()
+	
+	// for pagination
+	limit := c.DefaultQuery("limit", "10")
+	offset := c.DefaultQuery("offset", "0")
+	// for sorting
+	sortBy := c.DefaultQuery("sort_by", "created_at")
+	order := c.DefaultQuery("order", "desc")
+	// for filtering
+	// name := c.Query("name")
+	// minStock := c.Query("min_stock")
+	
+	
+	limitInt ,_ := strconv.Atoi(limit)
+	offsetInt ,_ := strconv.Atoi(offset)
+	// sortByInt ,_ := strconv.Atoi(sortBy)
+	// orderInt ,_ := strconv.Atoi(order)
+
+	if order != "asc" && order != "desc" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order parameter"})
+        return
+    }
+
+
+	if err := db.Limit(limitInt).Offset(offsetInt).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := db.Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+
+	orderClause := fmt.Sprintf("%s %s", sortBy, order)
+
+	if err := db.Order(orderClause).Find(&items).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve items"})
+        return
+    }
+
 	c.JSON(http.StatusOK, items)
 }
 
