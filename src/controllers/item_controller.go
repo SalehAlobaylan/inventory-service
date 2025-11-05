@@ -14,57 +14,56 @@ import (
 // GetItems handles GET /inventory requests and returns all inventory items.
 func GetItems(c *gin.Context) {
 	var items []models.Item
-	
 
 	db := utils.ConnectDatabase()
 	query := db.Model(&models.Item{})
-	
-	// for pagination
-	limit := c.DefaultQuery("limit", "10")
-	offset := c.DefaultQuery("offset", "0")
-	// for sorting
+
+	// Filters
+	if name := c.Query("name"); name != "" {
+		// Case-insensitive match (PostgreSQL)
+		query = query.Where("name ILIKE ?", "%"+name+"%")
+	}
+	if minStockStr := c.Query("min_stock"); minStockStr != "" {
+		if minStock, err := strconv.Atoi(minStockStr); err == nil {
+			query = query.Where("stock >= ?", minStock)
+		}
+	}
+
+	// Sorting (whitelist fields) to prevent SQL injection
+	allowedFields := map[string]bool{
+		"name":       true,
+		"stock":      true,
+		"price":      true,
+		"created_at": true,
+	}
 	sortBy := c.DefaultQuery("sort_by", "created_at")
+	if !allowedFields[sortBy] {
+		sortBy = "created_at"
+	}
 	order := c.DefaultQuery("order", "desc")
-	// for filtering
-	name := c.Query("name")
-	minStock := c.DefaultQuery("min_stock", "0")
-
-	if name != "" {
-		query = query.Where("name LIKE ?", "%"+name+"%")
-	}
-	if minStock != "0" {
-		minStockInt, _ := strconv.Atoi(minStock)
-		query = query.Where("stock >= ?", minStockInt)
-	}
-	
-	
-	limitInt ,_ := strconv.Atoi(limit)
-	offsetInt ,_ := strconv.Atoi(offset)
-
-
 	if order != "asc" && order != "desc" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order parameter"})
-        return
-    }
-
-
-	if err := query.Limit(limitInt).Offset(offsetInt).Find(&items).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		order = "desc"
 	}
-
-	if err := query.Find(&items).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-
 	orderClause := fmt.Sprintf("%s %s", sortBy, order)
+	query = query.Order(orderClause)
 
-	if err := query.Order(orderClause).Find(&items).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve items"})
-        return
-    }
+	// Pagination (with sane bounds)
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	if err := query.Limit(limit).Offset(offset).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, items)
 }
