@@ -246,6 +246,315 @@ router.Use(middlewares.RateLimiter())
 - ⚠️ Redis alternative: For distributed systems, use Redis-based rate limiting
 - ⚠️ Status code: Return 429 (Too Many Requests)
 
+#### 4.1 Redis-Based Rate Limiting (Production-Ready)
+
+**Why Redis?**
+
+- ✅ **Distributed**: Works across multiple server instances
+- ✅ **Persistent**: Rate limits survive application restarts
+- ✅ **Scalable**: Handles high-traffic applications
+- ✅ **Per-IP**: Easy to implement per-client rate limiting
+- ✅ **Flexible**: Support for multiple rate limit tiers (per-user, per-endpoint)
+
+**Dependencies**:
+
+```bash
+go get github.com/go-redis/redis/v8
+go get github.com/go-redis/redis_rate/v10
+```
+
+**Implementation** (`src/middlewares/redis_rate_limiter.go`):
+
+```go
+package middlewares
+
+import (
+    "context"
+    "fmt"
+    "net/http"
+    "time"
+
+    "github.com/gin-gonic/gin"
+    "github.com/go-redis/redis/v8"
+    "github.com/go-redis/redis_rate/v10"
+)
+
+var (
+    redisClient *redis.Client
+    rateLimiter *redis_rate.Limiter
+)
+
+// InitRedisRateLimiter initializes Redis connection for rate limiting
+func InitRedisRateLimiter(redisURL string) error {
+    opt, err := redis.ParseURL(redisURL)
+    if err != nil {
+        return fmt.Errorf("failed to parse Redis URL: %w", err)
+    }
+
+    redisClient = redis.NewClient(opt)
+
+    // Test connection
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    if err := redisClient.Ping(ctx).Err(); err != nil {
+        return fmt.Errorf("failed to connect to Redis: %w", err)
+    }
+
+    rateLimiter = redis_rate.NewLimiter(redisClient)
+    return nil
+}
+
+// RedisRateLimiter creates a Redis-based rate limiting middleware
+func RedisRateLimiter(requestsPerSecond int, burst int) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        ctx := c.Request.Context()
+
+        // Use client IP as the key for per-IP rate limiting
+        clientIP := c.ClientIP()
+        key := fmt.Sprintf("rate_limit:%s", clientIP)
+
+        // Check rate limit
+        limit := redis_rate.PerSecond(requestsPerSecond)
+        limit.Burst = burst
+
+        result, err := rateLimiter.Allow(ctx, key, limit)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": "rate limiter error",
+            })
+            c.Abort()
+            return
+        }
+
+        // Set rate limit headers
+        c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", requestsPerSecond))
+        c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
+        c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(time.Second).Unix()))
+
+        // Check if rate limit exceeded
+        if result.Allowed == 0 {
+            retryAfter := time.Until(result.RetryAfter).Seconds()
+            c.Header("Retry-After", fmt.Sprintf("%.0f", retryAfter))
+
+            c.JSON(http.StatusTooManyRequests, gin.H{
+                "error":       "too many requests",
+                "retry_after": fmt.Sprintf("%.0f seconds", retryAfter),
+            })
+            c.Abort()
+            return
+        }
+
+        c.Next()
+    }
+}
+
+// RedisRateLimiterByUser creates rate limiting based on authenticated user
+func RedisRateLimiterByUser(requestsPerSecond int, burst int) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        ctx := c.Request.Context()
+
+        // Extract user ID from context (set by auth middleware)
+        userID, exists := c.Get("user_id")
+        if !exists {
+            // Fall back to IP-based limiting for unauthenticated requests
+            userID = c.ClientIP()
+        }
+
+        key := fmt.Sprintf("rate_limit:user:%v", userID)
+
+        limit := redis_rate.PerSecond(requestsPerSecond)
+        limit.Burst = burst
+
+        result, err := rateLimiter.Allow(ctx, key, limit)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": "rate limiter error",
+            })
+            c.Abort()
+            return
+        }
+
+        c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", requestsPerSecond))
+        c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
+
+        if result.Allowed == 0 {
+            c.JSON(http.StatusTooManyRequests, gin.H{
+                "error":       "too many requests",
+                "retry_after": time.Until(result.RetryAfter).String(),
+            })
+            c.Abort()
+            return
+        }
+
+        c.Next()
+    }
+}
+
+// CloseRedis closes the Redis connection
+func CloseRedis() error {
+    if redisClient != nil {
+        return redisClient.Close()
+    }
+    return nil
+}
+```
+
+**Usage in main.go**:
+
+```go
+package main
+
+import (
+    "log"
+    "os"
+
+    "github.com/gin-gonic/gin"
+
+    "inventory-service/src/middlewares"
+    "inventory-service/src/routes"
+)
+
+func main() {
+    // Initialize Redis rate limiter
+    redisURL := os.Getenv("REDIS_URL")
+    if redisURL == "" {
+        redisURL = "redis://localhost:6379/0"
+    }
+
+    if err := middlewares.InitRedisRateLimiter(redisURL); err != nil {
+        log.Fatalf("Failed to initialize Redis rate limiter: %v", err)
+    }
+    defer middlewares.CloseRedis()
+
+    router := gin.Default()
+
+    // Apply Redis-based rate limiting globally
+    router.Use(middlewares.RedisRateLimiter(1, 5)) // 1 req/sec, burst of 5
+
+    routes.RegisterRoutes(router)
+
+    if err := router.Run(":8080"); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+**Advanced: Per-Endpoint Rate Limiting**:
+
+```go
+// Different rate limits for different endpoints
+func setupRoutes(router *gin.Engine) {
+    // Public endpoints: 10 req/sec
+    public := router.Group("/inventory")
+    public.Use(middlewares.RedisRateLimiter(10, 20))
+    {
+        public.GET("", controllers.GetItems)
+        public.GET("/:id", controllers.GetItemByID)
+    }
+
+    // Write endpoints: 5 req/sec
+    protected := router.Group("/inventory")
+    protected.Use(middlewares.RedisRateLimiter(5, 10))
+    {
+        protected.POST("", controllers.CreateItem)
+        protected.PUT("/:id", controllers.UpdateItem)
+        protected.DELETE("/:id", controllers.DeleteItem)
+    }
+}
+```
+
+**Docker Compose with Redis**:
+
+```yaml
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: inventory-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  app:
+    build: .
+    container_name: inventory-api
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/inventory_db?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+**Environment Variables**:
+
+```bash
+# .env
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/inventory_db?sslmode=disable
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Benefits of Redis-Based Rate Limiting**:
+
+1. **Distributed Systems**: Multiple API servers share the same rate limit state
+2. **Persistence**: Rate limit counters survive application restarts
+3. **Accurate**: No race conditions in distributed environments
+4. **Flexible Keys**: Can rate limit by IP, user ID, API key, etc.
+5. **Multiple Strategies**: Support for different algorithms (token bucket, sliding window, fixed window)
+6. **Headers**: Automatic rate limit headers (X-RateLimit-\*)
+7. **Monitoring**: Easy to monitor rate limit usage via Redis
+
+**Testing Redis Rate Limiter**:
+
+```bash
+# Test with multiple rapid requests
+for i in {1..20}; do
+  curl -w "\nStatus: %{http_code}\n" http://localhost:8080/inventory
+  sleep 0.1
+done
+
+# Check rate limit headers
+curl -I http://localhost:8080/inventory
+
+# Monitor Redis keys
+redis-cli
+> KEYS rate_limit:*
+> TTL rate_limit:127.0.0.1
+> GET rate_limit:127.0.0.1
+```
+
+**Production Considerations**:
+
+- ⚠️ **Redis Availability**: Use Redis Sentinel or Redis Cluster for high availability
+- ⚠️ **Fallback Strategy**: Implement fallback to in-memory rate limiting if Redis is down
+- ⚠️ **Key Expiration**: Set appropriate TTL on rate limit keys
+- ⚠️ **Monitoring**: Monitor Redis memory usage and connection pool
+- ⚠️ **Security**: Enable Redis authentication with `requirepass`
+- ⚠️ **Network**: Use TLS for Redis connections in production
+
 ---
 
 ### Phase 5: Pagination, Sorting, Filtering
@@ -822,4 +1131,3 @@ This project plan provides a comprehensive roadmap for building a production-rea
 5. Iterate and refine based on testing feedback
 
 Good luck with your implementation! 🚀
-

@@ -1,9 +1,9 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
 
@@ -17,6 +17,7 @@ func GetItems(c *gin.Context) {
 	
 
 	db := utils.ConnectDatabase()
+	query := db.Model(&models.Item{})
 	
 	// for pagination
 	limit := c.DefaultQuery("limit", "10")
@@ -25,14 +26,21 @@ func GetItems(c *gin.Context) {
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	order := c.DefaultQuery("order", "desc")
 	// for filtering
-	// name := c.Query("name")
-	// minStock := c.Query("min_stock")
+	name := c.Query("name")
+	minStock := c.DefaultQuery("min_stock", "0")
+
+	if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
+	}
+	if minStock != "0" {
+		minStockInt, _ := strconv.Atoi(minStock)
+		query = query.Where("stock >= ?", minStockInt)
+	}
 	
 	
 	limitInt ,_ := strconv.Atoi(limit)
 	offsetInt ,_ := strconv.Atoi(offset)
-	// sortByInt ,_ := strconv.Atoi(sortBy)
-	// orderInt ,_ := strconv.Atoi(order)
+
 
 	if order != "asc" && order != "desc" {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order parameter"})
@@ -40,12 +48,12 @@ func GetItems(c *gin.Context) {
     }
 
 
-	if err := db.Limit(limitInt).Offset(offsetInt).Find(&items).Error; err != nil {
+	if err := query.Limit(limitInt).Offset(offsetInt).Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := db.Find(&items).Error; err != nil {
+	if err := query.Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -53,7 +61,7 @@ func GetItems(c *gin.Context) {
 
 	orderClause := fmt.Sprintf("%s %s", sortBy, order)
 
-	if err := db.Order(orderClause).Find(&items).Error; err != nil {
+	if err := query.Order(orderClause).Find(&items).Error; err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve items"})
         return
     }
