@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"inventory-service/src/middlewares"
 	"inventory-service/src/models"
@@ -20,6 +21,9 @@ import (
 )
 
 func main() {
+	// Load environment variables from .env if present (no-op in production)
+	_ = godotenv.Load()
+
 	db := utils.ConnectDatabase()
 
 	if err := db.AutoMigrate(&models.Item{}); err != nil {
@@ -33,6 +37,7 @@ func main() {
 	router := gin.New()
 	router.Use(cors.Default())
 	middlewares.Register(router)
+	router.Use(middlewares.RateLimiter()) // added
 	routes.RegisterRoutes(router)
 
 	srv := &http.Server{Addr: ":8080", Handler: router}

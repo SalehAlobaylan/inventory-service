@@ -21,36 +21,6 @@ A RESTful API backend for inventory management built with Go, Gin, PostgreSQL, a
 - ✅ **Sorting & Filtering**: Sort by name/stock/price, filter by criteria
 - ✅ **Docker Support**: Containerized deployment
 
-## Project Structure
-
-```
-inventory-service/
-├── src/
-│   ├── main.go                 # Application entry point
-│   ├── models/
-│   │   └── item.go             # Item data model
-│   ├── controllers/
-│   │   └── item_controller.go  # Request handlers
-│   ├── routes/
-│   │   └── router.go           # Route definitions
-│   ├── middlewares/
-│   │   ├── logger.go           # Logging middleware
-│   │   └── rate_limiter.go     # Rate limiting (TODO)
-│   ├── utils/
-│   │   └── database.go         # Database connection
-│   └── seeds/
-│       └── seeder.go           # Initial data seeding
-├── Dockerfile
-├── docker-compose.yaml
-└── README.md
-```
-
-## Prerequisites
-
-- **Go**: 1.22 or higher ([Download](https://go.dev/dl/))
-- **PostgreSQL**: 12 or higher ([Download](https://www.postgresql.org/download/))
-- **Docker** (optional): For containerized deployment ([Download](https://www.docker.com/))
-
 ## Installation
 
 ### Option 1: Local Development (Manual Setup)
@@ -296,39 +266,6 @@ POST /inventory
 ]
 ```
 
-### Error Response (404 Not Found)
-
-```json
-{
-  "error": "item not found"
-}
-```
-
-## Database Schema
-
-### Items Table
-
-| Column     | Type         | Constraints |
-| ---------- | ------------ | ----------- |
-| id         | UUID         | PRIMARY KEY |
-| name       | VARCHAR(255) | NOT NULL    |
-| stock      | INTEGER      | NOT NULL    |
-| price      | NUMERIC      | NOT NULL    |
-| created_at | TIMESTAMP    | AUTO        |
-| updated_at | TIMESTAMP    | AUTO        |
-
-## Initial Data Seeding
-
-The application automatically seeds the database with sample inventory items on first run:
-
-- Laptop (Stock: 10, Price: $999.99)
-- Smartphone (Stock: 25, Price: $699.99)
-- Headphones (Stock: 15, Price: $199.99)
-- Keyboard (Stock: 30, Price: $89.99)
-- Monitor (Stock: 12, Price: $299.99)
-
-To re-seed the database, drop all items and restart the application.
-
 ## Development
 
 ### Project Dependencies
@@ -384,23 +321,3 @@ CGO_ENABLED=0 GOOS=linux go build -o inventory-service ./src
 | ------------ | -------- | ------- | ---------------------------- |
 | DATABASE_URL | Yes      | -       | PostgreSQL connection string |
 | PORT         | No       | 8080    | Server port                  |
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
-
----
-
-**Built with ❤️ using Go, Gin, PostgreSQL, and GORM**
