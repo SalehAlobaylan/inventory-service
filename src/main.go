@@ -37,7 +37,31 @@ func main() {
 	router := gin.New()
 	router.Use(cors.Default())
 	middlewares.Register(router)
-	router.Use(middlewares.RateLimiter()) // added
+
+
+
+	
+	// router.Use(middlewares.RateLimiter()) // we used redis rate limiter instead of this
+
+	// Initialize Redis-based rate limiter
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379/0"
+	}
+	if err := middlewares.InitRedisRateLimiter(redisURL); err != nil {
+		log.Fatalf("failed to initialize Redis rate limiter: %v", err)
+	}
+	defer func() {
+		_ = middlewares.CloseRedis()
+	}()
+
+	// Apply Redis rate limiter globally (1 req/sec, burst 5)
+	router.Use(middlewares.RedisRateLimiter(1, 5))
+
+
+
+
+
 	routes.RegisterRoutes(router)
 
 	srv := &http.Server{Addr: ":8080", Handler: router}
