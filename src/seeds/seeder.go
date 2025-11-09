@@ -8,7 +8,7 @@ import (
 	"inventory-service/src/models"
 )
 
-// SeedDatabase ensures that the database contains an initial set of inventory items.
+// just for testing purposes to make sure the database contains some data
 func SeedDatabase(db *gorm.DB) error {
 	var count int64
 	if err := db.Model(&models.Item{}).Count(&count).Error; err != nil {

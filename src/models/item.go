@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Item represents a single inventory item stored in the database.
+
 type Item struct {
 	ID        string    `json:"id" gorm:"type:uuid;primary_key"`
 	Name      string    `json:"name" gorm:"type:varchar(255);not null"`
@@ -17,7 +17,7 @@ type Item struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// BeforeCreate ensures that each item receives a unique identifier when inserted.
+// Generating UUID for each item
 func (item *Item) BeforeCreate(tx *gorm.DB) error {
 	if item.ID == "" {
 		item.ID = uuid.NewString()

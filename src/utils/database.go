@@ -10,8 +10,7 @@ import (
 
 var dbInstance *gorm.DB
 
-// ConnectDatabase establishes a PostgreSQL connection using the provided DSN
-// and returns a singleton GORM database instance.
+// starting the database connection
 func ConnectDatabase() *gorm.DB {
 	if dbInstance != nil {
 		return dbInstance

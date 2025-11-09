@@ -6,7 +6,7 @@ import (
 	"inventory-service/src/controllers"
 )
 
-// RegisterRoutes wires all inventory endpoints to the provided Gin engine.
+// Grouping all routes under the /inventory path
 func RegisterRoutes(router *gin.Engine) {
 	inventory := router.Group("/inventory")
 	{
