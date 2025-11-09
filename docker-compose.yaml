@@ -36,8 +36,6 @@ services:
     container_name: inventory-api
     ports:
       - "8080:8080"
-    environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/inventory_db?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +43,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/inventory_db?sslmode=disable
       REDIS_URL: redis://redis:6379/0
 
 volumes:

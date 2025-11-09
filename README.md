@@ -1,12 +1,12 @@
 # inventory-service
 
 ## Tech Stack
+
 <p align="left">
   <img src="https://skillicons.dev/icons?i=go" alt="Go" height="50" />
   <img src="https://skillicons.dev/icons?i=postgres" alt="PostgreSQL" height="50" />
   <img src="https://skillicons.dev/icons?i=docker" alt="Docker" height="50" />
 </p>
-
 
 ### Docker (recommended)
 
@@ -18,13 +18,16 @@ Runs PostgreSQL, Redis, and the API on `http://localhost:8080`.
 
 ### Manual run
 
-```bash
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/inventory_db?sslmode=disable"
-export REDIS_URL="redis://localhost:6379/0"
-go run ./src/main.go
-```
-
-PostgreSQL and Redis must already be running.
+1. Create `.env` in the project root:
+   ```
+   DATABASE_URL=postgres://postgres:postgres@localhost:5432/inventory_db?sslmode=disable
+   REDIS_URL=redis://localhost:6379/0
+   ```
+2. Start services (PostgreSQL + Redis)
+3. Run the API:
+   ```bash
+   go run ./src/main.go
+   ```
 
 ## API summary
 
