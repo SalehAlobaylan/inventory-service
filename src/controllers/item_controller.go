@@ -11,7 +11,35 @@ import (
 	"inventory-service/src/utils"
 )
 
+// CreateItemRequest defines the payload required to create a new inventory item.
+type CreateItemRequest struct {
+	Name  string  `json:"name" binding:"required" example:"Laptop"`
+	Stock int     `json:"stock" binding:"required" example:"10"`
+	Price float64 `json:"price" binding:"required" example:"999.99"`
+}
+
+// UpdateItemRequest defines the fields that can be updated on an inventory item.
+type UpdateItemRequest struct {
+	Name  *string  `json:"name" example:"Laptop Pro"`
+	Stock *int     `json:"stock" example:"15"`
+	Price *float64 `json:"price" example:"849.99"`
+}
+
 // GetItems handles GET /inventory requests and returns all inventory items.
+// @Summary List inventory items
+// @Description Retrieve inventory items with optional filtering, sorting, and pagination.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Param name query string false "Filter by item name (case-insensitive)"
+// @Param min_stock query int false "Minimum stock filter"
+// @Param limit query int false "Items per page (default 10, max 100)"
+// @Param offset query int false "Offset for pagination"
+// @Param sort_by query string false "Sort field (name|stock|price|created_at)"
+// @Param order query string false "Sort order (asc|desc)"
+// @Success 200 {array} models.Item
+// @Failure 500 {object} map[string]string
+// @Router /inventory [get]
 func GetItems(c *gin.Context) {
 	var items []models.Item
 
@@ -69,6 +97,15 @@ func GetItems(c *gin.Context) {
 }
 
 // GetItemByID handles GET /inventory/:id requests and returns the matching item.
+// @Summary Get an inventory item
+// @Description Retrieve a single inventory item by its identifier.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Param id path string true "Item ID"
+// @Success 200 {object} models.Item
+// @Failure 404 {object} map[string]string
+// @Router /inventory/{id} [get]
 func GetItemByID(c *gin.Context) {
 	id := c.Param("id")
 	var item models.Item
@@ -81,23 +118,51 @@ func GetItemByID(c *gin.Context) {
 }
 
 // CreateItem handles POST /inventory requests to add a new inventory item.
+// @Summary Create a new inventory item
+// @Description Create a new inventory item by providing its core attributes.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Param item body CreateItemRequest true "Item to create"
+// @Success 201 {object} models.Item
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /inventory [post]
 func CreateItem(c *gin.Context) {
-	var input models.Item
+	var input CreateItemRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	db := utils.ConnectDatabase()
-	if err := db.Create(&input).Error; err != nil {
+	item := models.Item{
+		Name:  input.Name,
+		Stock: input.Stock,
+		Price: input.Price,
+	}
+
+	if err := db.Create(&item).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, item)
 }
 
 // UpdateItem handles PUT /inventory/:id requests to modify an existing inventory item.
+// @Summary Update an inventory item
+// @Description Update the mutable fields of an existing inventory item.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Param id path string true "Item ID"
+// @Param item body UpdateItemRequest true "Fields to update"
+// @Success 200 {object} models.Item
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /inventory/{id} [put]
 func UpdateItem(c *gin.Context) {
 	id := c.Param("id")
 	var item models.Item
@@ -108,11 +173,7 @@ func UpdateItem(c *gin.Context) {
 		return
 	}
 
-	var payload struct {
-		Name  *string  `json:"name"`
-		Stock *int     `json:"stock"`
-		Price *float64 `json:"price"`
-	}
+	var payload UpdateItemRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -137,6 +198,16 @@ func UpdateItem(c *gin.Context) {
 }
 
 // DeleteItem handles DELETE /inventory/:id requests to remove an item from inventory.
+// @Summary Delete an inventory item
+// @Description Remove an inventory item by its identifier.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Param id path string true "Item ID"
+// @Success 204 {string} string "No Content"
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /inventory/{id} [delete]
 func DeleteItem(c *gin.Context) {
 	id := c.Param("id")
 	db := utils.ConnectDatabase()

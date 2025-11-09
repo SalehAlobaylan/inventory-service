@@ -1,0 +1,238 @@
+basePath: /
+definitions:
+  controllers.CreateItemRequest:
+    properties:
+      name:
+        example: Laptop
+        type: string
+      price:
+        example: 999.99
+        type: number
+      stock:
+        example: 10
+        type: integer
+    required:
+    - name
+    - price
+    - stock
+    type: object
+  controllers.UpdateItemRequest:
+    properties:
+      name:
+        example: Laptop Pro
+        type: string
+      price:
+        example: 849.99
+        type: number
+      stock:
+        example: 15
+        type: integer
+    type: object
+  models.Item:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      stock:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Inventory management API with CRUD operations and rate limiting.
+  title: Inventory Service API
+  version: "1.0"
+paths:
+  /inventory:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve inventory items with optional filtering, sorting, and
+        pagination.
+      parameters:
+      - description: Filter by item name (case-insensitive)
+        in: query
+        name: name
+        type: string
+      - description: Minimum stock filter
+        in: query
+        name: min_stock
+        type: integer
+      - description: Items per page (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      - description: Sort field (name|stock|price|created_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc|desc)
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Item'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List inventory items
+      tags:
+      - inventory
+    post:
+      consumes:
+      - application/json
+      description: Create a new inventory item by providing its core attributes.
+      parameters:
+      - description: Item to create
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Item'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new inventory item
+      tags:
+      - inventory
+  /inventory/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove an inventory item by its identifier.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete an inventory item
+      tags:
+      - inventory
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single inventory item by its identifier.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Item'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get an inventory item
+      tags:
+      - inventory
+    put:
+      consumes:
+      - application/json
+      description: Update the mutable fields of an existing inventory item.
+      parameters:
+      - description: Item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Item'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update an inventory item
+      tags:
+      - inventory
+swagger: "2.0"

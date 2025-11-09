@@ -1,5 +1,7 @@
 package middlewares
 
+// Deprecated: I have used RedisRateLimiter instead of this
+
 import (
 	"golang.org/x/time/rate"
 	"github.com/gin-gonic/gin"

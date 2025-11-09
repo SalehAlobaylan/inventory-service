@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,12 @@ func InitRedisRateLimiter(redisURL string) error {
 // RedisRateLimiter creates a Redis-based rate limiting middleware
 func RedisRateLimiter(requestsPerSecond int, burst int) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Allow swagger docs and assets to bypass rate limiting to avoid blank UI
+		if strings.HasPrefix(c.Request.URL.Path, "/swagger") {
+			c.Next()
+			return
+		}
+
 		ctx := c.Request.Context()
 
 		// Use client IP as the key for per-IP rate limiting
@@ -84,6 +91,11 @@ func RedisRateLimiter(requestsPerSecond int, burst int) gin.HandlerFunc {
 // RedisRateLimiterByUser creates rate limiting based on authenticated user
 func RedisRateLimiterByUser(requestsPerSecond int, burst int) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/swagger") {
+			c.Next()
+			return
+		}
+
 		ctx := c.Request.Context()
 
 		// Extract user ID from context (set by auth middleware)
