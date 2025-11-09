@@ -90,5 +90,3 @@ Query params for `GET /inventory`: `limit`, `offset`, `sort_by`, `order`, `name`
 
 - Swagger UI: `http://localhost:8080/swagger/index.html`
 - Regenerate docs after handler changes: `swag init -g src/main.go -o docs`
-- Run tests: `go test ./...`
-- Build binary: `CGO_ENABLED=0 GOOS=linux go build -o inventory-service ./src`
