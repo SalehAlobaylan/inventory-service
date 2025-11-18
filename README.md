@@ -10,13 +10,13 @@
 
 ## Key points and Features
 
-- ✅ **CRUD Operations**: Create, Read, Update, Delete inventory items
-- ✅ **RESTful API**: Clean and intuitive endpoints
-- ✅ **PostgreSQL Database**: Reliable data persistence with GORM ORM
-- ✅ **UUID Primary Keys**: Unique identifiers for all items
-- ✅ **Rate Limiting**: Prevent API abuse (1 req/sec, burst of 5)
-- ✅ **Pagination**: Handle large datasets efficiently
-- ✅ **Sorting & Filtering**: Sort by name/stock/price, filter by criteria
+-  **CRUD Operations**: Create, Read, Update, Delete inventory items
+-  **RESTful API**: Clean and intuitive endpoints
+-  **PostgreSQL Database**: Reliable data persistence with GORM ORM
+-  **UUID Primary Keys**: Unique identifiers for all items
+-  **Rate Limiting**: Prevent API abuse (1 req/sec, burst of 5)
+-  **Pagination**: Handle large datasets efficiently
+-  **Sorting & Filtering**: Sort by name/stock/price, filter by criteria
 
 ### Docker (recommended)
 
